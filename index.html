@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Keuangan Hajatan Keluarga</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-5">
+
+  <div class="max-w-4xl mx-auto">
+    <!-- Header Ringkasan Saldo (Publik) -->
+    <div class="bg-white p-6 rounded-lg shadow mb-6 text-center">
+      <h1 class="text-2xl font-bold mb-4">Laporan Keuangan Hajatan</h1>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-green-100 p-4 rounded">
+          <p class="text-sm">Total Pemasukan</p>
+          <p id="totalMasuk" class="text-xl font-bold text-green-700">Rp 0</p>
+        </div>
+        <div class="bg-red-100 p-4 rounded">
+          <p class="text-sm">Total Pengeluaran</p>
+          <p id="totalKeluar" class="text-xl font-bold text-red-700">Rp 0</p>
+        </div>
+        <div class="bg-blue-100 p-4 rounded">
+          <p class="text-sm">Sisa Saldo</p>
+          <p id="sisaSaldo" class="text-xl font-bold text-blue-700">Rp 0</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Laporan (Publik) -->
+    <div class="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 items-center">
+      <label class="font-semibold">Filter Tanggal:</label>
+      <input type="date" id="filterAwal" class="border p-2 rounded">
+      <span>s/d</span>
+      <input type="date" id="filterAkhir" class="border p-2 rounded">
+      <button onclick="renderTable()" class="bg-blue-600 text-white px-4 py-2 rounded">Terapkan</button>
+    </div>
+
+    <!-- Tabel Data (Publik) -->
+    <div class="bg-white p-6 rounded-lg shadow mb-6 overflow-x-auto">
+      <h2 class="text-lg font-bold mb-3">Rincian Transaksi</h2>
+      <table class="w-full border-collapse border border-gray-200">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="border p-2">Tanggal</th>
+            <th class="border p-2">Jenis</th>
+            <th class="border p-2">Keterangan</th>
+            <th class="border p-2">Nominal</th>
+          </tr>
+        </thead>
+        <tbody id="tabelData"></tbody>
+      </table>
+    </div>
+
+    <!-- Area Login Admin -->
+    <div id="adminSection" class="bg-white p-6 rounded-lg shadow">
+      <h2 class="text-lg font-bold mb-3">Akses Admin</h2>
+      <div id="loginForm" class="flex gap-2">
+        <input type="text" id="username" placeholder="Username" class="border p-2 rounded">
+        <input type="password" id="password" placeholder="Password" class="border p-2 rounded">
+        <button onclick="loginAdmin()" class="bg-green-600 text-white px-4 py-2 rounded">Login</button>
+      </div>
+
+      <!-- Form Input Data (Sembunyi sebelum login) -->
+      <div id="inputForm" class="hidden mt-4 space-y-3">
+        <p class="text-green-600 font-semibold">Status: Logged in sebagai Admin</p>
+        <div class="grid grid-cols-2 gap-3">
+          <input type="date" id="inputTanggal" class="border p-2 rounded">
+          <select id="inputJenis" class="border p-2 rounded">
+            <option value="Masuk">Masuk</option>
+            <option value="Keluar">Keluar</option>
+          </select>
+          <input type="text" id="inputKet" placeholder="Keterangan" class="border p-2 rounded col-span-2">
+          <input type="number" id="inputNominal" placeholder="Nominal (Rp)" class="border p-2 rounded col-span-2">
+        </div>
+        <button onclick="simpanTransaksi()" class="bg-blue-600 text-white px-4 py-2 rounded">Tambah Data</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxYFcdo42OFCbianC7_F9Y-1aG9kGjE25ppcbEXbaX-PwGpj7bWX8M2Ww53I5B8J2Pg/exec";
+    let allData = [];
+    let currentAdmin = null;
+
+    // Load data publik saat web dibuka
+    async function loadData() {
+      const res = await fetch(API_URL);
+      allData = await res.json();
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("tabelData");
+      const filterAwal = document.getElementById("filterAwal").value;
+      const filterAkhir = document.getElementById("filterAkhir").value;
+      
+      tbody.innerHTML = "";
+      let totalMasuk = 0, totalKeluar = 0;
+
+      allData.forEach(row => {
+        const tgl = row.Tanggal.split("T")[0]; // Format tanggal sederhana
+        
+        // Cek filter tanggal jika diisi
+        if (filterAwal && tgl < filterAwal) return;
+        if (filterAkhir && tgl > filterAkhir) return;
+
+        if (row.Jenis === "Masuk") totalMasuk += Number(row.Nominal);
+        if (row.Jenis === "Keluar") totalKeluar += Number(row.Nominal);
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="border p-2">${tgl}</td>
+            <td class="border p-2 ${row.Jenis === 'Masuk' ? 'text-green-600' : 'text-red-600'}">${row.Jenis}</td>
+            <td class="border p-2">${row.Keterangan}</td>
+            <td class="border p-2">Rp ${Number(row.Nominal).toLocaleString('id-ID')}</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById("totalMasuk").innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
+      document.getElementById("totalKeluar").innerText = `Rp ${totalKeluar.toLocaleString('id-ID')}`;
+      document.getElementById("sisaSaldo").innerText = `Rp ${(totalMasuk - totalKeluar).toLocaleString('id-ID')}`;
+    }
+
+    async function loginAdmin() {
+      const user = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "login", username: user, password: pass })
+      });
+      const result = await res.json();
+
+      if (result.status === "success") {
+        currentAdmin = user;
+        document.getElementById("loginForm").classList.add("hidden");
+        document.getElementById("inputForm").classList.remove("hidden");
+      } else {
+        alert("Username atau password salah!");
+      }
+    }
+
+    async function simpanTransaksi() {
+      const payload = {
+        action: "add",
+        tanggal: document.getElementById("inputTanggal").value,
+        jenis: document.getElementById("inputJenis").value,
+        keterangan: document.getElementById("inputKet").value,
+        nominal: document.getElementById("inputNominal").value,
+        admin: currentAdmin
+      };
+
+      await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+      alert("Data berhasil disimpan!");
+      loadData(); // Refresh tampilan
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
